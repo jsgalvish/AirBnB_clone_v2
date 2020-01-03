@@ -14,4 +14,3 @@ def do_pack():
     if command.succeeded:
         return file_name
     return None
-
