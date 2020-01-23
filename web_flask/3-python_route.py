@@ -22,5 +22,13 @@ def c(text):
     """route"""
     return "C %s" % text.replace("_", " ")
 
+
+@app.route('/python',
+           defaults={"text": "is cool"}, strict_slashes=False)
+@app.route('/python/<text>', strict_slashes=False)
+def python(text):
+    """route"""
+    return "Python %s" % text.replace("_", " ")
+
 if __name__ == '__main__':
     app.run("0.0.0.0", 5000)

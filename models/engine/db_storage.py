@@ -1,72 +1,86 @@
 #!/usr/bin/python3
-
-"""db_storage"""
-
-from models.base_model import BaseModel, Base
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, scoped_session
-
-import os
+"""Module for DBstorage class"""
+from os import getenv
+from sqlalchemy import create_engine, MetaData
 
 
-class DBStorage:
-    """DBStorage class"""
-
+class DBStorage():
+    """Class for database storage"""
     __engine = None
     __session = None
 
     def __init__(self):
-        """Constructor for DBStorage"""
-        username = os.getenv('HBNB_MYSQL_USER')
-        psw = os.getenv('HBNB_MYSQL_PWD')
-        host = os.getenv('HBNB_MYSQL_HOST')
-        db_name = os.getenv('HBNB_MYSQL_DB')
-        self.__engine = create_engine('mysql+mysqldb://{}:{}@{}:3306/{}'
-                                      .format(username, psw, host, db_name),
-                                      pool_pre_ping=True)
-        if os.getenv('HBNB_ENV') == 'test':
-            Base.metadata.drop_all(self.__engine)
+        """Initializes storage"""
+        from models.base_model import Base
+        self.__engine = create_engine(
+            'mysql+mysqldb://{}:{}@{}:3306/{}'
+            .format(getenv("HBNB_MYSQL_USER"),
+                    getenv("HBNB_MYSQL_PWD"),
+                    getenv("HBNB_MYSQL_HOST"),
+                    getenv("HBNB_MYSQL_DB")),
+            pool_pre_ping=True)
 
     def all(self, cls=None):
-        """Retrieve all objects from database"""
-        _dict = {}
-        if cls is None:
-            objs = []
-            classes = ['User', 'State', 'City', 'Place', 'Review', 'Amenity']
-            for c in classes:
-                results = self.__session.query(eval(c))
-                for res in results:
-                    objs.append(res)
+        """returns all objects of cls"""
+        from models.state import State
+        from models.city import City
+        from models.user import User
+        from models.amenity import Amenity
+        from models.place import Place
+        from models.review import Review
+
+        class_list = [
+            State,
+            City,
+            User,
+            Place,
+            Review,
+            Amenity
+        ]
+        rows = []
+        if cls:
+            rows = self.__session.query(cls)
         else:
-            objs = self.__session.query(cls).all()
-        for obj in objs:
-            key = type(obj).__name__ + "." + str(obj.id)
-            _dict[key] = obj
-        return _dict
+            for cls in class_list:
+                rows += self.__session.query(cls)
+        return {type(v).__name__ + "." + v.id: v for v in rows}
 
     def new(self, obj):
-        """Add object to current database session"""
-        if obj:
-            self.__session.add(obj)
+        """add object to db"""
+        if not obj:
+            return
+        self.__session.add(obj)
 
     def save(self):
-        """Commit all changes of the database session"""
+        """commit changes to db"""
         self.__session.commit()
 
     def delete(self, obj=None):
-        """Delete from the current database session obj if not None"""
+        """delete obj from db"""
         if obj:
             self.__session.delete(obj)
+            self.save()
 
     def reload(self):
-        """Creates all tables in the database"""
+        """create all tables in the db"""
+        from models.base_model import Base
+        from models.state import State
+        from models.city import City
+        from models.amenity import Amenity
+        from models.user import User
+        from models.review import Review
+        from models.place import Place
+        from sqlalchemy.orm import sessionmaker, scoped_session
+
+        if getenv("HBNB_ENV") == "test":
+            Base.metadata.drop_all(self.__engine)
         Base.metadata.create_all(self.__engine)
-        Session = scoped_session(sessionmaker(bind=self.__engine,
-                                              expire_on_commit=False))
+
+        session_factory = sessionmaker(bind=self.__engine,
+                                       expire_on_commit=False)
+        Session = scoped_session(session_factory)
         self.__session = Session()
 
-    def reset(self):
-        """Reset session"""
+    def close(self):
+        """Thread specific storage"""
         self.__session.close()
-        Base.metadata.drop_all(self.__engine)
-        self.reload()

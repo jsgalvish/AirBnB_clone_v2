@@ -1,9 +1,9 @@
 #!/usr/bin/python3
 """This is the state class"""
 from models.base_model import BaseModel, Base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy import Column, String
-import os
+from os import getenv
 
 
 class State(BaseModel, Base):
@@ -11,20 +11,20 @@ class State(BaseModel, Base):
     Attributes:
         name: input name
     """
-    __tablename__ = 'states'
+    __tablename__ = "states"
+    name = Column(String(128), nullable=False)
+    cities = relationship(
+        "City",
+        cascade="all,delete,delete-orphan",
+        backref=backref("state", cascade="all,delete"),
+        passive_deletes=True,
+        single_parent=True)
 
-    name = Column(String(128),
-                  nullable=False)
-
-    cities = relationship("City",
-                          backref="state",
-                          cascade="all, delete-orphan")
-
-    if os.getenv('HBNB_TYPE_STORAGE') == 'db':
+    if getenv("HBNB_TYPE_STORAGE") != "db":
         @property
         def cities(self):
-            _list = []
-            for city in self.cities:
-                if city.state_id == self.id:
-                    _list.append(city)
-            return _list
+            """returns list of City instances with state_id"""
+            from models import storage
+            from models import City
+            return [v for k, v in storage.all(City).items()
+                    if v.state_id == self.id]

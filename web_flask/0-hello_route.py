@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Minimal flask app"""
+"""flask"""
 
 from flask import Flask
 app = Flask(__name__)
@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 @app.route('/', strict_slashes=False)
 def index():
-    """Route index"""
+    """route"""
     return "Hello HBNB!"
 
 if __name__ == '__main__':
